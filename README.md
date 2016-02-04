@@ -95,8 +95,8 @@ absolute dotted path to your class in your `layer.yaml` file:
 
 ```yaml
 includes:
-    - layer: basic
-    - layer: coordinator
+    - layer:basic
+    - layer:coordinator
 options:
     coordinator:
         class: charmhelpers.coordinator.Serial
