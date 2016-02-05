@@ -75,7 +75,8 @@ def initialize_coordinator_state():
                                for state in charms.reactive.bus.get_states()
                                if state.startswith('coordinator.requested.'))
     for dropped in (previously_requested - requested):
-        charms.reactive.remove_state('coordinator.requested.{}'.format(dropped))
+        charms.reactive.remove_state('coordinator.requested.{}'
+                                     ''.format(dropped))
     for state in requested:
         charms.reactive.set_state('coordinator.requested.{}'.format(state))
 
