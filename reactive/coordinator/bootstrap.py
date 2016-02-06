@@ -18,16 +18,15 @@ import importlib
 
 from charmhelpers.coordinator import BaseCoordinator
 from charmhelpers.core import hookenv
-import charms.layer
 import charms.reactive
 
 import reactive.coordinator
+from reactive.coordinator import options, log
 
 
 def _instantiate():
     default_name = 'reactive.coordinator.SimpleCoordinator'
-    full_name = charms.layer.options('coordinator').get('class',
-                                                        default_name)
+    full_name = options.get('class', default_name)
     components = full_name.split('.')
     module = '.'.join(components[:-1])
     name = components[-1]
@@ -38,9 +37,15 @@ def _instantiate():
     class_ = getattr(importlib.import_module(module), name)
 
     assert issubclass(class_, BaseCoordinator), \
-        '{} is not a BaseCoordinator'.format(full_name)
+        '{} is not a BaseCoordinator subclass'.format(full_name)
 
-    return class_(peer_relation_name='coordinator')
+    try:
+        # The Coordinator layer defines its own peer relation, as it
+        # can't piggy back on an existing peer relation that may not
+        # exist.
+        return class_(peer_relation_name='coordinator')
+    finally:
+        log('Using {} coordinator'.format(full_name), hookenv.DEBUG)
 
 
 # Instantiate the BaseCoordinator singleton, which installs
@@ -59,26 +64,37 @@ def initialize_coordinator_state():
     not yet granted
     '''
     global coordinator
-    hookenv.log('Initializing coordinator layer')
-    # Remove reactive state for locks that have been released.
-    granted = set(coordinator.grants.get(hookenv.local_unit(), {}).keys())
-    previously_granted = set(state.split('.', 2)[2]
-                             for state in charms.reactive.bus.get_states()
-                             if state.startswith('coordinator.granted.'))
-    for released in (previously_granted - granted):
-        charms.reactive.remove_state('coordinator.granted.{}'.format(released))
-    for state in granted:
-        charms.reactive.set_state('coordinator.granted.{}'.format(state))
+    log('Initializing coordinator layer')
 
     requested = set(coordinator.requests.get(hookenv.local_unit(), {}).keys())
     previously_requested = set(state.split('.', 2)[2]
                                for state in charms.reactive.bus.get_states()
                                if state.startswith('coordinator.requested.'))
-    for dropped in (previously_requested - requested):
-        charms.reactive.remove_state('coordinator.requested.{}'
-                                     ''.format(dropped))
-    for state in requested:
-        charms.reactive.set_state('coordinator.requested.{}'.format(state))
+
+    granted = set(coordinator.grants.get(hookenv.local_unit(), {}).keys())
+    previously_granted = set(state.split('.', 2)[2]
+                             for state in charms.reactive.bus.get_states()
+                             if state.startswith('coordinator.granted.'))
+
+    # Set reactive state for requested locks.
+    for lock in requested:
+        log('Requested {} lock'.format(lock), hookenv.DEBUG)
+        charms.reactive.set_state('coordinator.requested.{}'.format(lock))
+
+    # Set reactive state for locks that have been granted.
+    for lock in granted:
+        log('Granted {} lock'.format(lock), hookenv.DEBUG)
+        charms.reactive.set_state('coordinator.granted.{}'.format(lock))
+
+    # Remove reactive state for locks that have been released.
+    for lock in (previously_granted - granted):
+        log('Dropped {} lock'.format(lock), hookenv.DEBUG)
+        charms.reactive.remove_state('coordinator.granted.{}'.format(lock))
+
+    # Remove requested state for locks no longer requested and not granted.
+    for lock in (previously_requested - requested - granted):
+        log('Request for {} lock was dropped'.format(lock), hookenv.DEBUG)
+        charms.reactive.remove_state('coordinator.requested.{}'.format(lock))
 
 
 # Per https://github.com/juju-solutions/charms.reactive/issues/33,

@@ -19,3 +19,5 @@ options:
     coordinator:
         # Absolute path to the charmhelpers.coordinator.BaseCoordinator to use.
         class: reactive.coordinator.SimpleCoordinator
+        # Layer log level (debug, info, warning, error, critical)
+        log_level: info

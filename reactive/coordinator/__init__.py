@@ -15,7 +15,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from charmhelpers.coordinator import BaseCoordinator
+from charmhelpers.core import hookenv
 from charms import reactive
+import charms.layer
+
+
+__all__ = ['coordinator', 'acquire']
 
 
 coordinator = None  # The BaseCoordinator, initialized by bootstrap.py
@@ -33,11 +38,28 @@ def acquire(lock):
     """
     global coordinator
     if coordinator.acquire(lock):
-        reactive.set_state('coordinator.granted.{}'.format(lock))
+        s = 'coordinator.granted.{}'.format(lock)
+        if not reactive.is_state(s):
+            log('Granted {} lock'.format(lock), hookenv.DEBUG)
+            reactive.set_state('coordinator.granted.{}'.format(lock))
         return True
     else:
+        log('Requested {} lock'.format(lock), hookenv.DEBUG)
         reactive.set_state('coordinator.requested.{}'.format(lock))
         return False
+
+
+options = charms.layer.options('coordinator')
+
+
+def log(msg, level=hookenv.INFO):
+    lmap = {hookenv.DEBUG: 1,
+            hookenv.INFO: 2,
+            hookenv.WARNING: 3,
+            hookenv.ERROR: 4,
+            hookenv.CRITICAL: 5}
+    if lmap[level] >= lmap[options.get('log_level', 'DEBUG').upper()]:
+        hookenv.log('Coordinator: {}'.format(msg), level)
 
 
 class SimpleCoordinator(BaseCoordinator):
@@ -54,14 +76,32 @@ class SimpleCoordinator(BaseCoordinator):
         while ensuring the operations do not occur on different nodes
         at the same time.
         '''
+        existing_grants = {k: v for k, v in self.grants.items() if v}
+
         # Return True if this unit has already been granted any lock.
-        if 'unit' in self.grants:
+        if existing_grants.get(unit):
+            self.msg('Granting {} to {} (existing grants)'.format(lock, unit),
+                     hookenv.INFO)
             return True
 
         # Return False if another unit has been granted any lock.
-        if self.grants:
+        if existing_grants:
+            self.msg('Not granting {} to {} (locks held by {})'
+                     ''.format(lock, unit, ','.join(existing_grants.keys())),
+                     hookenv.INFO)
             return False
 
         # Otherwise, return True if the unit is first in the queue for
         # this named lock.
-        return queue[0] == unit
+        if queue[0] == unit:
+            self.msg('Granting {} to {} (first in queue)'
+                     ''.format(lock, unit), hookenv.INFO)
+            return True
+        else:
+            self.msg('Not granting {} to {} (not first in queue)'
+                     ''.format(lock, unit), hookenv.INFO)
+            return False
+
+    def msg(self, msg, level=hookenv.DEBUG):
+        '''Emit a message.'''
+        log(msg, level)
