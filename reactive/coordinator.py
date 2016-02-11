@@ -14,44 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import importlib
-
-from charmhelpers.coordinator import BaseCoordinator
 from charmhelpers.core import hookenv
+from charms.coordinator import coordinator, log
 import charms.reactive
-
-import reactive.coordinator
-from reactive.coordinator import options, log
-
-
-def _instantiate():
-    default_name = 'reactive.coordinator.SimpleCoordinator'
-    full_name = options.get('class', default_name)
-    components = full_name.split('.')
-    module = '.'.join(components[:-1])
-    name = components[-1]
-
-    if not module:
-        module = 'reactive.coordinator'
-
-    class_ = getattr(importlib.import_module(module), name)
-
-    assert issubclass(class_, BaseCoordinator), \
-        '{} is not a BaseCoordinator subclass'.format(full_name)
-
-    try:
-        # The Coordinator layer defines its own peer relation, as it
-        # can't piggy back on an existing peer relation that may not
-        # exist.
-        return class_(peer_relation_name='coordinator')
-    finally:
-        log('Using {} coordinator'.format(full_name), hookenv.DEBUG)
-
-
-# Instantiate the BaseCoordinator singleton, which installs
-# its charmhelpers.core.atstart() hooks.
-coordinator = _instantiate()
-reactive.coordinator.coordinator = coordinator
 
 
 def initialize_coordinator_state():
@@ -63,7 +28,6 @@ def initialize_coordinator_state():
     The coordinator.requested.{lockname} state will remain set for locks
     not yet granted
     '''
-    global coordinator
     log('Initializing coordinator layer')
 
     requested = set(coordinator.requests.get(hookenv.local_unit(), {}).keys())

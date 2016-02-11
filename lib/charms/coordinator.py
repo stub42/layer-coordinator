@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import importlib
+
 from charmhelpers.coordinator import BaseCoordinator
 from charmhelpers.core import hookenv
 from charms import reactive
@@ -21,9 +23,6 @@ import charms.layer
 
 
 __all__ = ['coordinator', 'acquire']
-
-
-coordinator = None  # The BaseCoordinator, initialized by bootstrap.py
 
 
 def acquire(lock):
@@ -105,3 +104,32 @@ class SimpleCoordinator(BaseCoordinator):
     def msg(self, msg, level=hookenv.DEBUG):
         '''Emit a message.'''
         log(msg, level)
+
+
+def _instantiate():
+    default_name = 'charms.coordinator.SimpleCoordinator'
+    full_name = options.get('class', default_name)
+    components = full_name.split('.')
+    module = '.'.join(components[:-1])
+    name = components[-1]
+
+    if not module:
+        module = 'charms.coordinator'
+
+    class_ = getattr(importlib.import_module(module), name)
+
+    assert issubclass(class_, BaseCoordinator), \
+        '{} is not a BaseCoordinator subclass'.format(full_name)
+
+    try:
+        # The Coordinator layer defines its own peer relation, as it
+        # can't piggy back on an existing peer relation that may not
+        # exist.
+        return class_(peer_relation_name='coordinator')
+    finally:
+        log('Using {} coordinator'.format(full_name), hookenv.DEBUG)
+
+
+# Instantiate the BaseCoordinator singleton, which installs
+# its charmhelpers.core.atstart() hooks.
+coordinator = _instantiate()

@@ -13,14 +13,14 @@ layer maintains charms.reactive states, allowing you to allowing you to
 write handlers that will be activated when requested locks are granted.
 
 ```python
-from reactive import coordinator
+import charms.coordinator
 from charmhelpers.core.hookenv import status_set
 
 
 @hook('config-changed')
 def config_changed():
     reconfigure()
-    coordinator.acquire('restart')
+    charms.coordinator.acquire('restart')
 
 
 @when('coordinator.granted.restart')
@@ -39,7 +39,7 @@ the Customization section on how to change this behaviour.
 
 ## API
 
-The `reactive.coordinator` module exposes a single method:
+The `charms.coordinator` module exposes a single method:
 
 * acquire(lockname)
 
@@ -56,7 +56,7 @@ The `reactive.coordinator` module exposes a single method:
 
 
 The actual BaseCoordinator instance is available as
-`reactive.coordinator.coordinator` if you need to interrogate it,
+`charms.coordinator.coordinator` if you need to interrogate it,
 but the reactive states make this unnecessary for most needs.
 
 
@@ -84,7 +84,7 @@ grant `restart` locks to N/2-1 units at a time. Or only grant locks when
 a particular config item has been set, blocking charm operations until
 the operator has given the go ahead.
 
-The default `reactive.coordinator.SimpleCoordinator` implementation only
+The default `charms.coordinator.SimpleCoordinator` implementation only
 grants locks to a single unit at a time, and the lock names are
 irrelevant. Another implementation is `charmhelpers.coordinator.Serial`,
 which grants the named lock to a single unit at a time but allows for
@@ -100,6 +100,7 @@ includes:
 options:
     coordinator:
         class: charmhelpers.coordinator.Serial
+        log_level: debug
 ```
 
 
