@@ -72,7 +72,7 @@ but the reactive states make this unnecessary for most needs.
   The named lock has been granted. The lock will only be held until
   the end of the hook, even if more requests to reacquire it are
   made. You cannot maintain hold on a lock across multiple hooks - other
-  units will always be given the opportinuty to acquire it.
+  units will always be given the opportunity to acquire it.
 
 
 ## Customization
